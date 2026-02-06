@@ -5,7 +5,7 @@ from exchanger.base.models import LiveResponse, ReadyResponse
 router = APIRouter(tags=["base"])  # no prefix, base-level endpoints
 
 
-@router.get("/health/live")
+@router.get("/health")
 async def health_live() -> LiveResponse:
     return LiveResponse(status=True)
 
