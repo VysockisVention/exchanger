@@ -10,6 +10,6 @@ async def health_live() -> LiveResponse:
     return LiveResponse(status=True)
 
 
-@router.get("/health/ready")
+@router.get("/ready")
 async def health_ready() -> ReadyResponse:
     return ReadyResponse(ready=True)
