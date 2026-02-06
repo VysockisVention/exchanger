@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Annotated
 
+from fastapi import Depends
+
 from exchanger.rates.models import (
     AverageRateResponse,
     CurrencyRate,
@@ -94,4 +96,4 @@ def get_rates_service() -> RatesService:
     return RatesService()
 
 
-RateServiceDependency = Annotated[RatesService, get_rates_service]
+RateServiceDependency = Annotated[RatesService, Depends(get_rates_service)]

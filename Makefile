@@ -29,6 +29,10 @@ clean: ## Remove all temporary files and unused git references.
 lint: ## Linting check
 	poetry run pre-commit run --all-files
 
+.PHONY: fix
+fix: ## Fix linting errors
+	poetry run ruff check . --fix
+
 .PHONY: test
 test: ## Run tests
 	poetry run pytest -vv
