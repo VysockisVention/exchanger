@@ -1,36 +1,38 @@
-.PHONY: help install lint format fix test check clean
+.DEFAULT_GOAL := help
+ 
+##@ General
+ 
+.PHONY: help
+help: ## Display this help.
+	@awk 'BEGIN {FS = ":.*##"; printf "Usage: \033[36mmake <target>\033[0m\n\nAwailable targets:\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+ 
+##@ Environment
+ 
+.PHONY: lock
+lock: ## Lock dependencies in uv.lock.
+	poetry lock
+ 
+.PHONY: sync
+sync: ## Install/sync dependencies from uv.lock
+	poetry sync
+ 
+.PHONY: clean
+clean: ## Remove all temporary files and unused git references.
+	git clean -fdX \
+	--exclude '!.env' \
+	--exclude '!.venv' \
+	--exclude '!.venv/**' \
+	--exclude '!.vscode' \
+	--exclude '!.vscode/**'
 
-help:
-	@echo "Available commands:"
-	@echo "  make install   - install dependencies"
-	@echo "  make lint      - run ruff lint"
-	@echo "  make format    - run ruff formatter"
-	@echo "  make fix       - auto-fix lint issues"
-	@echo "  make test      - run tests (NO TEST YET)"
-	@echo "  make check     - lint + tests"
-	@echo "  make clean     - remove caches"
-	@echo "  make dev     	- makes and runs dev"
+.PHONY: lint
+lint: ## Linting check
+	poetry run pre-commit run --all-files
 
-install:
-	poetry install
-
-lint:
-	poetry run ruff check .
-
-format:
-	poetry run ruff format .
-
-fix:
-	poetry run ruff check . --fix
-	poetry run ruff format .
-
-test:
+.PHONY: test
+test: ## Run tests
 	poetry run pytest -vv
 
-check: lint test
-
-dev: check
-	poetry run fastapi dev exchanger/main.py
-
-clean:
-	rm -rf .pytest_cache .ruff_cache __pycache__
+.PHONY: dev
+dev: ## Run dev
+	poetry run fastapi run exchanger/main.py

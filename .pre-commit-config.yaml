@@ -1,9 +1,6 @@
 repos:
-  - repo: local
-    hooks:
-      - id: make-check
-        name: make check
-        entry: make check
-        language: system
-        pass_filenames: false
-
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.15.0
+  hooks:
+    - id: ruff-check
+    - id: ruff-format
