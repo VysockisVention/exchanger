@@ -14,6 +14,8 @@ from exchanger.rates.models import (
 @dataclass
 class RatesService:
     """
+    Rates Service class.
+
     Stage 2:
         • returns demo data
         • contains domain logic
@@ -83,12 +85,12 @@ class RatesService:
 def get_rates_service() -> RatesService:
     """
     FastAPI dependency provider.
+
     Later:
         • inject DB session
         • inject HTTP clients
         • inject config
     """
-
     return RatesService()
 
 
