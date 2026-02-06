@@ -34,5 +34,5 @@ test: ## Run tests
 	poetry run pytest -vv
 
 .PHONY: dev
-dev: ## Run dev
+dev: ## Run dev fastapi
 	poetry run fastapi run exchanger/main.py
