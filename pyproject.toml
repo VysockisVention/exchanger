@@ -1,0 +1,94 @@
+[project]
+name = "exchanger"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Your Name",email = "you@example.com"}
+]
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi[standard] (==0.128.1)"
+]
+
+[dependency-groups]
+dev = [
+    "ruff (>=0.15.0,<0.16.0)",
+    "pre-commit (>=4.5.1,<5.0.0)",
+    "pytest (>=9.0.2,<10.0.0)",
+    "pytest-asyncio (>=1.3.0,<2.0.0)",
+    "mypy (>=1.19.1,<2.0.0)"
+]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+
+[tool.pytest]
+minversion = "9.0"
+testpaths = [
+    "tests",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = [
+  "ASYNC",  # flake8-async
+  "B",      # flake8-bugbear
+  "C90",    # mccabe - Complexity checker
+  "D",      # pydocstyle - Doc strings
+  "E",      # pycodestyle
+  "ERA",    # eradicate - Deletes commented code
+  "F",      # pyflakes
+  "FA",     # flake8-future-annotations
+  "FLY",    # flynt
+  "I",      # isort
+  "N",      # pep8-naming
+  "PERF",   # Perflint
+  "PIE",    # flake8-pie
+  "RUF",    # ruff
+  "RSE",    # flake8-raise
+  "SIM",    # flake8-simplify
+  "T10",    # flake8-debugger
+  "T20",    # flake8-print
+  "TID",    # flake8-tidy-imports
+  "TRY",    # tryceratops - Makes life harder TryExcepts
+  "UP",     # pyupgrade
+  "W",      # pycodestyle
+  "FAST",   # fastapi
+]
+ignore = [
+  # flake8-async
+  "ASYNC109", # Async function defenition with a `timeout` parameter
+  # flake8-bugbear
+  "B008",     # Do not perform function call {name} in argument defaults; instead, perform the call within the function, or read the default from a module-level singleton variable
+  "B9",       # Opinionated warnings
+  # Pydocstyle
+  "D10",      # Missing docstring in public ...
+  "D203",     # 1 blank line required before class docstring
+  "D212",     # Multi-line docstring summary should start at the first line
+  "D413",     # Missing blank line after last section
+  # ruff
+  "RUF001", # String contains ambiguous {}. Did you mean {}?
+  # flake8-simplify
+  "SIM102",   # Use a single `if` statement instead of nested `if` statements
+  # tryceratops
+  "TRY003",   # Avoid specifying long messages outside the exception class
+]
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.pycodestyle]
+ignore-overlong-task-comments = true
+max-doc-length = 100
+max-line-length = 100
+
+[tool.ruff.format]
+docstring-code-format = true
