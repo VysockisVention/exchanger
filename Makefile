@@ -40,3 +40,15 @@ test: lint ## Run tests
 .PHONY: dev
 dev: ## Run dev fastapi
 	poetry run fastapi run exchanger/main.py
+
+
+#-------
+#.PHONY: test1
+#test1: test2 ## Print test1
+#	echo "test1"
+
+#test2: test3
+#	touch test2 
+#	echo "test2"
+
+

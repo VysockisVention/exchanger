@@ -2,7 +2,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query
 
-from exchanger.rates.models import AverageRateResponse, RatesListResponse
+from exchanger.rates.models import (
+    AverageRateResponse,
+    CurrenciesResponse,
+    CurrencyRatesResponse,
+    RatesListResponse,
+)
 from exchanger.rates.service import RateServiceDependency
 
 router = APIRouter(prefix="/rates", tags=["rates"])
@@ -22,3 +27,19 @@ async def get_average_rate(
     service: RateServiceDependency,
 ) -> AverageRateResponse:
     return await service.calculate_average_rate(base, quote)
+
+
+@router.get("/currencies")
+async def get_currencies(
+    service: RateServiceDependency,
+) -> CurrenciesResponse | None:
+    return await service.fetch_currencies()
+
+
+@router.get("/currencies/{currshort}")
+async def get_currency_rates(
+    currshort: str,
+    service: RateServiceDependency,
+    date: str = "latest",
+) -> CurrencyRatesResponse | None:
+    return await service.fetch_currency_rates(date, currshort)

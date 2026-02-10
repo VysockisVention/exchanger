@@ -2,11 +2,17 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Annotated
 
+import httpx
 from fastapi import Depends
+from fastapi.exceptions import ResponseValidationError
 
+from exchanger.core.middleware.logging import logger
+from exchanger.integrations.jsdelivr import JSDlivir
 from exchanger.rates.models import (
     AverageRateResponse,
+    CurrenciesResponse,
     CurrencyRate,
+    CurrencyRatesResponse,
     RatesListResponse,
 )
 
@@ -16,14 +22,62 @@ class RatesService:
     """
     Rates Service class.
 
-    Stage 2:
-        • returns demo data
-        • contains domain logic
-    Stage 3:
-        • will call Lithuanian bank APIs
-    Stage 4:
-        • will read/write PostgreSQL
+    Documentation
     """
+
+    async def fetch_currencies(self) -> CurrenciesResponse | None:
+        try:
+            async with JSDlivir() as api:
+                data = await api.get_currencies()
+            validated_data = CurrenciesResponse.model_validate(data)
+        except ResponseValidationError:
+            logger.warning("Currency API returned bad format returning none")
+        except httpx.HTTPError as httpError:
+            logger.error(f"Currency fetch failed: {httpError}")
+        except Exception as e:
+            logger.error(f"UNHANDELED ERROR: {e}")
+        else:
+            return validated_data
+
+        return None
+
+    async def is_valid_date(self, date_str):
+        if date_str == "latest":
+            return True
+
+        try:
+            datetime.strptime(date_str, "%Y-%m-%d")
+        except ValueError:
+            return False
+        else:
+            return True
+
+    async def is_valid_currency(self, currshort: str) -> bool:
+        resp = await self.fetch_currencies()
+        if resp is None:
+            return False
+
+        return any(c.currencyshort == currshort for c in resp.currencies)
+
+    async def fetch_currency_rates(self, date, currshort):
+        currshort = currshort.lower()
+        if not await self.is_valid_date(date):
+            return None
+
+        if not await self.is_valid_currency(currshort):
+            return None
+
+        try:
+            async with JSDlivir() as api:
+                data = await api.get_rates(date=date, currshort=currshort)
+
+            return CurrencyRatesResponse.model_validate(data)
+        except ResponseValidationError:
+            logger.warning("Currency rates API returned bad format returning none")
+        except httpx.HTTPError as httpError:
+            logger.error(f"Currency rates fetch failed: {httpError}")
+        except Exception as e:
+            logger.error(f"UNHANDELED ERROR: {e}")
 
     async def list_latest_rates(self) -> RatesListResponse:
         now = datetime.now(UTC)
