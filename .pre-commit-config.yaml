@@ -1,6 +1,33 @@
 repos:
-- repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.15.0
-  hooks:
-    - id: ruff-check
-    - id: ruff-format
+  # --- file hygiene / normalization ---
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        args: ["--markdown-linebreak-ext=md"]
+
+      - id: end-of-file-fixer
+
+      - id: mixed-line-ending
+        args: ["--fix=crlf"]
+
+      - id: check-merge-conflict
+
+      - id: check-added-large-files
+        args: ["--maxkb=500"]
+
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+
+
+  # --- Python linting / formatting (Ruff) ---
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.0
+    hooks:
+      # Lint FIRST (may autofix)
+      - id: ruff-check
+        args: ["--fix"]
+
+      # Format AFTER lint fixes
+      - id: ruff-format

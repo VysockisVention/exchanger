@@ -1,11 +1,11 @@
-from __future__ import annotations
+from typing import Literal
 
 from pydantic import BaseModel
 
 
 class ReadyResponse(BaseModel):
-    ready: bool
+    status: Literal["ok"]
 
 
 class LiveResponse(BaseModel):
-    status: bool
+    status: Literal["ok"]

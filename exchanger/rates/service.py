@@ -68,18 +68,11 @@ class RatesService:
             total += rate
             count += 1
 
-        if count == 0:
-            return AverageRateResponse(
-                base_currency=base_currency,
-                quote_currency=quote_currency,
-                average_rate=0.0,
-                providers=0,
-            )
-
+        average_rate = total / count if count else 0.0
         return AverageRateResponse(
             base_currency=base_currency,
             quote_currency=quote_currency,
-            average_rate=total / count,
+            average_rate=average_rate,
             providers=count,
         )
 

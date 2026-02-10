@@ -7,7 +7,13 @@ from exchanger.core.middleware.logging import request_logging_middleware, setup_
 def create_app() -> FastAPI:
     setup_logging()
 
-    app = FastAPI(title="Exchanger API", version="0.1.0")
+    app = FastAPI(
+        title="Exchanger API",
+        version="0.1.0",
+        openapi_url="/api/openapi.json",
+        docs_url="/api/docs",
+        redoc_url=None,
+    )
 
     app.middleware("http")(request_logging_middleware)
 

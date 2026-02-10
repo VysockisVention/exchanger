@@ -2,8 +2,9 @@ import pytest
 
 from exchanger.rates.service import RatesService
 
+pytestmark = pytest.mark.asyncio
 
-@pytest.mark.asyncio
+
 async def test_list_latest_rates_returns_demo_items():
     service = RatesService()
 
@@ -13,7 +14,6 @@ async def test_list_latest_rates_returns_demo_items():
     assert {r.provider for r in data.items} == {"swedbank", "seb"}
 
 
-@pytest.mark.asyncio
 async def test_calculate_average_rate_for_existing_pair():
     service = RatesService()
 
@@ -26,7 +26,6 @@ async def test_calculate_average_rate_for_existing_pair():
     assert result.average_rate == pytest.approx(1.095)
 
 
-@pytest.mark.asyncio
 async def test_calculate_average_rate_for_missing_pair_returns_zero():
     service = RatesService()
 

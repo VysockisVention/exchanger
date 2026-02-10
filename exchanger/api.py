@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
-from exchanger.base import router as base_router
-from exchanger.rates import router as rates_router
+from exchanger.monitoring.router import router as base_router
+from exchanger.rates.router import router as rates_router
 
 # Versioned API
 api_router = APIRouter(prefix="/api")
