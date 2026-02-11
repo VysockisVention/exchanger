@@ -33,9 +33,15 @@ class CurrenciesResponse(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def from_dict_response(cls, raw: Any):
+    def normalize_input(cls, raw: Any):
+        # Case 1: API returns dict { "eur": "Euro", ... }
         if isinstance(raw, dict):
-            return {"currencies": [{"currencyshort": k, "currency": val} for k, val in raw.items()]}
+            return {"currencies": [{"currencyshort": k, "currency": v} for k, v in raw.items()]}
+
+        # Case 2: repository passes list type
+        if isinstance(raw, list):
+            return {"currencies": [{"currencyshort": k, "currency": v} for k, v in raw]}
+
         return raw
 
 

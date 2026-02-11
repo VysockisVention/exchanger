@@ -6,9 +6,12 @@ import httpx
 import structlog
 from fastapi import Depends
 from fastapi.exceptions import ResponseValidationError
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from exchanger.db.session import DatabaseSession
 from exchanger.integrations.jsdelivr import JSDlivir
-from exchanger.rates.models import (
+from exchanger.rates import repository
+from exchanger.rates.schemas import (
     AverageRateResponse,
     CurrenciesResponse,
     CurrencyRate,
@@ -27,6 +30,8 @@ class RatesService:
     Documentation
     """
 
+    session: AsyncSession
+
     async def fetch_currencies(self) -> CurrenciesResponse | None:
         try:
             async with JSDlivir() as api:
@@ -43,7 +48,25 @@ class RatesService:
 
         return None
 
-    async def is_valid_date(self, date_str):
+    async def sync_currencies(self) -> CurrenciesResponse | None:
+        resp = await self.fetch_currencies()
+        if resp is None:
+            return None
+
+        try:
+            await repository.upsert_currencies(self.session, resp)
+            await self.session.commit()
+        except Exception:
+            await self.session.rollback()
+            log.exception("currencies_db_sync_failed")
+            return None
+
+        return resp
+
+    async def list_currencies_from_db(self) -> CurrenciesResponse:
+        return await repository.list_currencies(self.session)
+
+    def is_valid_date(self, date_str):
         if date_str == "latest":
             return True
 
@@ -55,18 +78,14 @@ class RatesService:
             return True
 
     async def is_valid_currency(self, currshort: str) -> bool:
-        resp = await self.fetch_currencies()
-        if resp is None:
-            return False
-
-        return any(c.currencyshort == currshort for c in resp.currencies)
+        return await repository.get_currency(self.session, currshort) is not None
 
     async def fetch_currency_rates(self, date, currshort):
         currshort = currshort.lower()
 
         log_ = log.bind(date=date, currency=currshort)
 
-        if not await self.is_valid_date(date):
+        if not self.is_valid_date(date):
             log_.warning("currency_rates_invalid_date")
             return None
 
@@ -139,7 +158,7 @@ class RatesService:
         )
 
 
-def get_rates_service() -> RatesService:
+def get_rates_service(session: DatabaseSession) -> RatesService:
     """
     FastAPI dependency provider.
 
@@ -148,7 +167,7 @@ def get_rates_service() -> RatesService:
         • inject HTTP clients
         • inject config
     """
-    return RatesService()
+    return RatesService(session=session)
 
 
 RateServiceDependency = Annotated[RatesService, Depends(get_rates_service)]

@@ -41,6 +41,8 @@ test: lint ## Run tests
 dev: ## Run dev fastapi
 	poetry run fastapi run exchanger/main.py
 
+.PHONY: makemigrations
+	poetry run alembic
 
 #-------
 #.PHONY: test1
@@ -50,3 +52,24 @@ dev: ## Run dev fastapi
 #test2: test3
 #	touch test2
 #	echo "test2"
+
+
+#-------------Alembic-------------
+.PHONY: makemigrations migrate downgrade
+
+makemigrations: ## Make migrations file
+	@if [ -z "$(msg)" ]; then \
+		echo ""; \
+		echo "❌ Missing migration message"; \
+		echo "   Usage: make migrations msg=\"your message\""; \
+		echo ""; \
+		exit 1; \
+	fi
+	poetry run alembic revision --autogenerate -m "$(msg)"
+
+migrate: ## Apply migrations to database
+	poetry run alembic upgrade head
+
+downgrade: ## Downgrade migration
+	poetry run alembic downgrade -1
+#---------------------------------
