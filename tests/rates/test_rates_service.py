@@ -35,3 +35,15 @@ async def test_calculate_average_rate_for_missing_pair_returns_zero():
     assert result.quote_currency == "JPY"
     assert result.providers == 0
     assert result.average_rate == 0.0
+
+
+@pytest.mark.asyncio
+async def test_check_date_validation():
+    service = RatesService()
+
+    result = await service.is_valid_date("2025-10-30")
+    assert result
+    result = await service.is_valid_date("2025-30-10")
+    assert not result
+    result = await service.is_valid_date("Test")
+    assert not result

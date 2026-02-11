@@ -1,61 +1,61 @@
-import logging
 import time
-import uuid
 from collections.abc import Callable
 
+import structlog
 from fastapi import Request, Response
 from starlette.responses import Response as StarletteResponse
 
-logger = logging.getLogger("exchanger")
+log = structlog.get_logger("exchanger")
 
 
 def setup_logging() -> None:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s | %(levelname)s | %(message)s",
+    structlog.configure(
+        processors=[
+            structlog.processors.add_log_level,
+            structlog.processors.TimeStamper(fmt="iso", utc=True),
+            structlog.processors.format_exc_info,
+            structlog.processors.JSONRenderer(),
+        ],
+        logger_factory=structlog.PrintLoggerFactory(),  # ← no stdlib logging
+        cache_logger_on_first_use=True,
     )
 
 
 async def request_logging_middleware(request: Request, call_next: Callable) -> Response:
-    request_id = request.headers.get("x-request-id") or str(uuid.uuid4())
     start = time.perf_counter()
 
-    endpoint = f"{request.method} {request.url.path}"
+    method = request.method
+    path = request.url.path
+    request_id = request.headers.get("x-request-id")
 
     try:
         response: StarletteResponse = await call_next(request)
 
-    except Exception as exc:
-        duration = round((time.perf_counter() - start) * 1000, 2)
+    except Exception:
+        duration_ms = round((time.perf_counter() - start) * 1000, 2)
 
-        logger.exception(
-            f"{endpoint} | UNHANDLED_EXCEPTION | {type(exc).__name__}",
-            extra={
-                "request_id": request_id,
-                "duration_ms": duration,
-            },
-        )
+        evt = log.bind(method=method, path=path, duration_ms=duration_ms)
+        if request_id:
+            evt = evt.bind(request_id=request_id)
+
+        evt.exception("unhandled_exception")
         raise
 
-    duration = round((time.perf_counter() - start) * 1000, 2)
-
-    response.headers["x-request-id"] = request_id
-
+    duration_ms = round((time.perf_counter() - start) * 1000, 2)
     status = response.status_code
 
+    if request_id:
+        response.headers["x-request-id"] = request_id
+
+    evt = log.bind(method=method, path=path, status=status, duration_ms=duration_ms)
+    if request_id:
+        evt = evt.bind(request_id=request_id)
+
     if status < 400:
-        logger.info(f"{endpoint} | OK | {status}", extra={"request_id": request_id})
-        return response
+        evt.info("request")
+    elif status < 500:
+        evt.warning("request")
+    else:
+        evt.error("request")
 
-    if 400 <= status < 500:
-        logger.warning(
-            f"{endpoint} | CLIENT_ERROR | {status}",
-            extra={"request_id": request_id, "duration_ms": duration},
-        )
-        return response
-
-    logger.error(
-        f"{endpoint} | SERVER_ERROR | {status}",
-        extra={"request_id": request_id, "duration_ms": duration},
-    )
     return response
