@@ -3,10 +3,10 @@ from datetime import UTC, datetime
 from typing import Annotated
 
 import httpx
+import structlog
 from fastapi import Depends
 from fastapi.exceptions import ResponseValidationError
 
-from exchanger.core.middleware.logging import logger
 from exchanger.integrations.jsdelivr import JSDlivir
 from exchanger.rates.models import (
     AverageRateResponse,
@@ -15,6 +15,8 @@ from exchanger.rates.models import (
     CurrencyRatesResponse,
     RatesListResponse,
 )
+
+log = structlog.get_logger(__name__)
 
 
 @dataclass
@@ -31,11 +33,11 @@ class RatesService:
                 data = await api.get_currencies()
             validated_data = CurrenciesResponse.model_validate(data)
         except ResponseValidationError:
-            logger.warning("Currency API returned bad format returning none")
-        except httpx.HTTPError as httpError:
-            logger.error(f"Currency fetch failed: {httpError}")
-        except Exception as e:
-            logger.error(f"UNHANDELED ERROR: {e}")
+            log.exception("currencies_model_validation_failed")
+        except httpx.HTTPError:
+            log.exception("currencies_fetch_failed")
+        except Exception:
+            log.exception("currencies_unhandeled")
         else:
             return validated_data
 
@@ -61,10 +63,15 @@ class RatesService:
 
     async def fetch_currency_rates(self, date, currshort):
         currshort = currshort.lower()
+
+        log_ = log.bind(date=date, currency=currshort)
+
         if not await self.is_valid_date(date):
+            log_.warning("currency_rates_invalid_date")
             return None
 
         if not await self.is_valid_currency(currshort):
+            log_.warning("currency_rates_invalid_currency")
             return None
 
         try:
@@ -72,12 +79,15 @@ class RatesService:
                 data = await api.get_rates(date=date, currshort=currshort)
 
             return CurrencyRatesResponse.model_validate(data)
+
         except ResponseValidationError:
-            logger.warning("Currency rates API returned bad format returning none")
-        except httpx.HTTPError as httpError:
-            logger.error(f"Currency rates fetch failed: {httpError}")
-        except Exception as e:
-            logger.error(f"UNHANDELED ERROR: {e}")
+            log_.exception("currency_rates_model_validation_failed")
+        except httpx.HTTPError:
+            log_.exception("currency_rates_fetch_failed")
+        except Exception:
+            log_.exception("currency_rates_unhandeled")
+
+        return None
 
     async def list_latest_rates(self) -> RatesListResponse:
         now = datetime.now(UTC)
