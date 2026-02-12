@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 from exchanger.core.config import get_settings
 from exchanger.db.base import Base
+from exchanger.db.models import *  # noqa: F403
 
 settings = get_settings()
 

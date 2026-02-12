@@ -39,6 +39,10 @@ testpaths = [
 [tool.ruff]
 line-length = 100
 target-version = "py313"
+exclude = [
+    "versions",
+    "exchanger/db/models"
+]
 
 [tool.ruff.lint]
 select = [
@@ -83,6 +87,8 @@ ignore = [
   "SIM102",   # Use a single `if` statement instead of nested `if` statements
   # tryceratops
   "TRY003",   # Avoid specifying long messages outside the exception class
+  "E221",  # Multiple spaces before operator
+  "E241",  # Multiple spaces after comma
 ]
 
 [tool.ruff.lint.isort]
