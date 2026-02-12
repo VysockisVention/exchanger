@@ -25,7 +25,6 @@ async def upsert_currencies(session: AsyncSession, resp: CurrenciesResponse) -> 
 async def list_currencies(session: AsyncSession) -> CurrenciesResponse:
     stmt = select(Currency.currencyshort, Currency.currency).order_by(Currency.currencyshort)
     result = await session.execute(stmt)
-
     return CurrenciesResponse.model_validate(result.all())
 
 
