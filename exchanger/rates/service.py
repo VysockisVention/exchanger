@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Annotated
 
 import httpx
@@ -12,11 +12,9 @@ from exchanger.db.session import DatabaseSession
 from exchanger.integrations.jsdelivr import JSDlivir
 from exchanger.rates import repository
 from exchanger.rates.schemas import (
-    AverageRateResponse,
     CurrenciesResponse,
-    CurrencyRate,
+    CurrencyHistoryRatesResponse,
     CurrencyRatesResponse,
-    RatesListResponse,
 )
 
 log = structlog.get_logger(__name__)
@@ -55,7 +53,6 @@ class RatesService:
 
         try:
             await repository.upsert_currencies(self.session, resp)
-            await self.session.commit()
         except Exception:
             await self.session.rollback()
             log.exception("currencies_db_sync_failed")
@@ -66,38 +63,37 @@ class RatesService:
     async def list_currencies_from_db(self) -> CurrenciesResponse:
         return await repository.list_currencies(self.session)
 
-    def is_valid_date(self, date_str):
-        if date_str == "latest":
-            return True
-
+    def parse_date(self, date_str):
         try:
-            datetime.strptime(date_str, "%Y-%m-%d")
+            date_parsed = (
+                datetime.strptime(date_str, "%Y-%m-%d").date()
+                if date_str != "latest"
+                else datetime.now().date()
+            )
         except ValueError:
-            return False
+            return None
         else:
-            return True
+            return date_parsed
 
-    async def is_valid_currency(self, currshort: str) -> bool:
-        return await repository.get_currency(self.session, currshort) is not None
-
-    async def fetch_currency_rates(self, date, currshort):
+    async def fetch_currency_rates(self, date, currshort) -> dict | None:
         currshort = currshort.lower()
 
         log_ = log.bind(date=date, currency=currshort)
 
-        if not self.is_valid_date(date):
-            log_.warning("currency_rates_invalid_date")
-            return None
+        date = self.parse_date(date)
+        currency = await repository.get_currency(self.session, currshort)
 
-        if not await self.is_valid_currency(currshort):
-            log_.warning("currency_rates_invalid_currency")
+        if date is None or currency is None:
+            log_.warning("currency_rates_invalid_date_or_currency")
             return None
 
         try:
             async with JSDlivir() as api:
                 data = await api.get_rates(date=date, currshort=currshort)
 
-            return CurrencyRatesResponse.model_validate(data)
+            validated_data = CurrencyRatesResponse.model_validate(data)
+
+            await repository.upsert_currency_rates(self.session, date, currency, validated_data)
 
         except ResponseValidationError:
             log_.exception("currency_rates_model_validation_failed")
@@ -105,57 +101,42 @@ class RatesService:
             log_.exception("currency_rates_fetch_failed")
         except Exception:
             log_.exception("currency_rates_unhandeled")
+        else:
+            return validated_data.model_dump(include={"rates"})
 
         return None
 
-    async def list_latest_rates(self) -> RatesListResponse:
-        now = datetime.now(UTC)
+    async def fetch_currency_rate_history(
+        self, currshort, datefrom, dateto
+    ) -> list[CurrencyHistoryRatesResponse] | None:
+        log_ = log.bind(currshort=currshort, dateFrom=datefrom, dateTo=dateto)
 
-        demo_rates = [
-            CurrencyRate(
-                provider="swedbank",
-                base_currency="EUR",
-                quote_currency="USD",
-                rate=1.09,
-                timestamp=now,
-            ),
-            CurrencyRate(
-                provider="seb",
-                base_currency="EUR",
-                quote_currency="USD",
-                rate=1.10,
-                timestamp=now,
-            ),
-        ]
+        parsed_date_from = self.parse_date(datefrom)
+        parsed_date_to = self.parse_date(dateto)
+        currency = await repository.get_currency(self.session, currshort)
 
-        return RatesListResponse(items=demo_rates)
+        if parsed_date_from is None or parsed_date_to is None:
+            log_.warning("currency_rates_invalid_date_tofrom")
+            return None
+
+        if currency is None:
+            return None
+
+        try:
+            return await repository.get_currency_rates(
+                self.session, parsed_date_from, parsed_date_to, currency
+            )
+        except httpx.HTTPError:
+            log_.exception("currency_rates_history_fetch_failed")
+        except Exception:
+            log_.exception("currency_rates_history_unhandeled")
+
+        return None
 
     def iter_relevant_rates(self, data, base_currency: str, quote_currency: str):
         for r in data.items:
             if r.base_currency == base_currency and r.quote_currency == quote_currency:
                 yield r.rate
-
-    async def calculate_average_rate(
-        self,
-        base_currency: str,
-        quote_currency: str,
-    ) -> AverageRateResponse:
-        data = await self.list_latest_rates()
-
-        total = 0.0
-        count = 0
-
-        for rate in self.iter_relevant_rates(data, base_currency, quote_currency):
-            total += rate
-            count += 1
-
-        average_rate = total / count if count else 0.0
-        return AverageRateResponse(
-            base_currency=base_currency,
-            quote_currency=quote_currency,
-            average_rate=average_rate,
-            providers=count,
-        )
 
 
 def get_rates_service(session: DatabaseSession) -> RatesService:
